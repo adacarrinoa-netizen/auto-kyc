@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+*.docx
+*.doc
+*.DOCX
+*.DOC
+.env
+.env.*
+mcp.json
+**/credentials*
+*.pem
+*.pptx
+*.pdf
+out/
+**/KYC报告*
