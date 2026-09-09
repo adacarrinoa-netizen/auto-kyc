@@ -52,5 +52,6 @@ python3 ~/.cursor/skills/auto-kyc/scripts/run_auto_kyc.py \
 
 ## 注意
 
+- **不包含**任何 KYC 报告 Word/PDF 成品；仓库仅含 skill 与生成脚本（`*.docx` 已在 `.gitignore`）
 - 公开 KYC 不能替代人行征信、中登、合同与决议核验
 - 禁止编造工商/司法/评级/债券只数；多源不一致须写明口径
