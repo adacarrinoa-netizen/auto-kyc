@@ -153,6 +153,48 @@ class Att4Builder:
         )
         return level, judgment, admission
 
+    @staticmethod
+    def _news_negative_summary(news_note: str, news_rows: list) -> str:
+        """把舆情模块压缩成结论区「负面事项」一句分析。"""
+        highlights: list[str] = []
+        for row in (news_rows or [])[:3]:
+            if not isinstance(row, (list, tuple)) or not row:
+                continue
+            date = str(row[0] if len(row) > 0 else "").strip()
+            title = str(row[1] if len(row) > 1 else "").strip()
+            point = str(row[2] if len(row) > 2 else "").strip()
+            bit = " / ".join(x for x in (date, title or point) if x and x != "—")
+            if bit:
+                highlights.append(bit)
+        note = (news_note or "").strip()
+        if highlights and note:
+            return f"近窗命中摘要：{'；'.join(highlights)}。研判：{note}"
+        if highlights:
+            return f"近窗命中摘要：{'；'.join(highlights)}。未见/待核重大违约、评级下调等信用污点类舆情时须在正文第9节写明。"
+        if note:
+            return note
+        return "本次未形成可结构化负面舆情摘要；须以财汇/启信/公告检索在归档日复核，并在第9节留痕。"
+
+    @staticmethod
+    def _ensure_news_in_negatives(
+        provided: Any,
+        news_summary: str,
+        default_items: list[str],
+    ) -> list[str]:
+        """结论区负面事项汇总必须含公司负面舆情分析（可合并入既有条目）。"""
+        markers = ("负面舆情", "公司舆情", "舆情")
+        if not provided:
+            return list(default_items)
+        items = [str(x).strip() for x in provided if str(x).strip()]
+        if any(any(m in it for m in markers) for it in items):
+            return items
+        # Agent 未写舆情时强制补一条，序号顺延
+        n = len(items) + 1
+        circ = "①②③④⑤⑥⑦⑧⑨⑩"
+        prefix = circ[n - 1] if n <= len(circ) else f"{n}."
+        items.append(f"{prefix}公司负面舆情：{news_summary}")
+        return items
+
     def build(self, out_path: Path) -> Path:
         level, judgment, admission = self._risk_bits()
         date_cn = self.checked_at[:10] if self.checked_at else datetime.now().strftime("%Y-%m-%d")
@@ -197,12 +239,21 @@ class Att4Builder:
             + (f"证券代码{stock}。" if stock else "")
             + "是否符合《指引》附件1低风险/高风险直接认定，以公开核验与项目材料为准。"
         )
-        negative_items = self.x.get("negative_items") or [
-            f"①司法/处罚：{penalty_note}",
-            f"②启信风险扫描：{qixin_risk_note}",
-            f"③主体评级：{rating_txt}",
-            "④人行征信与中登全量登记：本次公开KYC未覆盖，须正式渠道补充。",
-        ]
+        news_rows = self.x.get("news_rows") or []
+        news_summary = self.x.get("news_summary") or self._news_negative_summary(
+            news_note, news_rows
+        )
+        negative_items = self._ensure_news_in_negatives(
+            self.x.get("negative_items"),
+            news_summary,
+            default_items=[
+                f"①司法/处罚：{penalty_note}",
+                f"②启信风险扫描：{qixin_risk_note}",
+                f"③主体评级：{rating_txt}",
+                f"④公司负面舆情：{news_summary}",
+                "⑤人行征信与中登全量登记：本次公开KYC未覆盖，须正式渠道补充。",
+            ],
+        )
         fact_summary = self.x.get("fact_summary") or (
             f"{self.name}公开身份与控制权已核验；评级 {rating_txt}。"
             "经营、债务与交易结构须结合项目方案进一步判断。"

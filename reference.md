@@ -24,12 +24,14 @@
 | judgment | 「结论：…」 |
 | admission | 「是否建议准入」全文 |
 | risk_basis | 认定依据段落 |
-| negative_items | list[str]，负面事项①②③… |
+| negative_items | list[str]，负面事项①②③…；**必须含「公司负面舆情」分析**（生成器缺则自动补） |
+| news_summary | 可选；结论区舆情一句研判，优先于自动拼接 |
 | fact_summary / relevance / business_impact / controls | 研判四段 |
 | control_path | 控制路径一句话 |
 | shareholder_rows | [[股东, 比例, 数量, 性质], ...] |
 | judicial_rows | [[日期, 案由, 身份, 案号, 进展], ...] |
 | news_rows | [[日期, 标题, 要点, 来源], ...] |
+| news_note | 第9节舆情正文；亦用于拼结论区舆情条目 |
 | finance_rows | 年报指标行 |
 | bond_note | 存量债与口径说明 |
 | penalty_note / qixin_risk_note / executed_note / limit_consume_note / bankruptcy_note | 风险模块 |

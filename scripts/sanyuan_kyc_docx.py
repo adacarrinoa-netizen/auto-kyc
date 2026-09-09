@@ -294,6 +294,12 @@ class SanyuanBuilder:
                 "须核金额与执行状态",
                 "关注进展" if judicial else "未见公开命中/待复核",
             ],
+            [
+                "公司负面舆情",
+                (self.extras.get("news_note") or "舆情待财汇/公告续核")[:80],
+                "与还款来源关联性待项目化判断",
+                "须跟踪",
+            ],
             ["主体评级", rating_txt, "公开评级字段", "一般关注" if not rating else "已披露"],
         ]
         self.add_table(["事项", "事实摘要", "关联性与风险影响", "结论"], neg_rows, [0.9, 2.15, 2.85, 0.65], 7.7)

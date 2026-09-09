@@ -349,7 +349,7 @@ def _extract_blob(obj: Any) -> str:
 
 
 def fetch_kyc_extras(company: str) -> dict:
-    """尽力拉取司法/处罚摘要，写入三源核验版第六章。"""
+    """尽力拉取司法/处罚/舆情摘要，写入附件4结论区与模块正文。"""
     extras: dict[str, Any] = {
         "judicial_rows": [],
         "penalty_note": "财汇主体监管处罚检索未返回可结构化明细；归档日须保留信用中国等官方留痕。",
@@ -358,7 +358,9 @@ def fetch_kyc_extras(company: str) -> dict:
         "finance_note": "财务三源细核（iFinD/Wind）可在 Agent 侧按 skill 续核后补表；结构对齐上海城投三源核验版第五章。",
         "industry_note": "公开工商信息已采集；实质行业与主营构成建议以 iFinD/Wind 及申报书业务描述交叉认定。",
         "news_note": "舆情细核可结合财汇新闻/iFinD 公告检索在 Agent 侧续补。",
+        "news_rows": [],
         "negative_rows": [],
+        "negative_items": [],
     }
     # 司法
     for tool_name in (
@@ -425,6 +427,100 @@ def fetch_kyc_extras(company: str) -> dict:
                 break
         except Exception:  # noqa: BLE001
             continue
+    # 负面舆情（结论区负面事项汇总必用）
+    for tool_name in ("search_news", "search_news_semantic"):
+        try:
+            args: dict[str, Any]
+            if tool_name == "search_news":
+                args = {
+                    "target_company": [company],
+                    "publish_date": "近一年",
+                    "sentiment": ["负面"],
+                    "limit": 10,
+                }
+            else:
+                args = {
+                    "entity_name": [company],
+                    "date": "近一年",
+                    "negative": "是",
+                    "query": f"{company}负面舆情或处罚或违约或诉讼",
+                }
+            rpc = caihui_rpc(
+                "tools/call",
+                {
+                    "name": "execute_tool",
+                    "arguments": {"tool_name": tool_name, "arguments": args},
+                },
+                req_id=22,
+            )
+            parsed = parse_execute_tool_result(rpc)
+            data = ((parsed or {}).get("data") or {}).get("records") or {}
+            rows = data.get("data") or []
+            heads = data.get("headInfo") or []
+            fields = [h.get("field") or h.get("name") for h in heads]
+            total = ((parsed or {}).get("data") or {}).get("summary") or {}
+            total_n = total.get("total_records") or total.get("return_records") or len(rows)
+            if rows and fields:
+                for row in rows[:5]:
+                    item = {fields[i]: row[i] for i in range(min(len(fields), len(row)))}
+                    extras["news_rows"].append(
+                        [
+                            str(
+                                item.get("publish_date")
+                                or item.get("date")
+                                or item.get("发布时间")
+                                or "—"
+                            )[:16],
+                            _clip(
+                                item.get("title")
+                                or item.get("资讯标题")
+                                or item.get("news_title")
+                                or "",
+                                48,
+                            ),
+                            _clip(
+                                item.get("summary")
+                                or item.get("资讯摘要")
+                                or item.get("category")
+                                or "负面/关注",
+                                36,
+                            ),
+                            _clip(item.get("source") or item.get("来源") or "财汇", 20),
+                        ]
+                    )
+                extras["news_note"] = (
+                    f"财汇近一年负面舆情约 {total_n} 条；下表列示代表性标题。"
+                    "须区分业绩波动解读与重大信用事件，详情见第9节。"
+                )
+                break
+            blob = _clip(_extract_blob(parsed), 240)
+            if blob and "不存在" not in blob and "Unknown" not in blob and "0条" not in blob:
+                extras["news_note"] = f"财汇舆情检索：{_clip(blob, 200)}"
+                break
+        except Exception:  # noqa: BLE001
+            continue
+
+    jud_n = len(extras.get("judicial_rows") or [])
+    news_bit = extras.get("news_note") or "本次未形成可结构化负面舆情摘要，归档日须复核。"
+    if extras.get("news_rows"):
+        top = extras["news_rows"][0]
+        news_bit = f"{top[0]}《{top[1]}》等；{news_bit}"
+    extras["negative_items"] = [
+        f"①司法/处罚：{extras.get('penalty_note')}",
+        f"②司法案件公开摘要：财汇返回约 {jud_n} 条（详见第8节）。",
+        f"③公司负面舆情：{news_bit}",
+        "④人行征信与中登全量登记：本次公开KYC未覆盖，须正式渠道补充。",
+    ]
+    extras["negative_rows"] = [
+        ["监管处罚", _clip(extras.get("penalty_note"), 80), "主体公开检索", "关注/复核"],
+        [
+            "司法案件",
+            f"财汇公开检索返回 {jud_n} 条摘要",
+            "须核金额与执行状态",
+            "关注进展" if jud_n else "未见公开命中/待复核",
+        ],
+        ["公司负面舆情", _clip(news_bit, 80), "与还款来源关联性待项目化判断", "须跟踪"],
+    ]
     return extras
 
 

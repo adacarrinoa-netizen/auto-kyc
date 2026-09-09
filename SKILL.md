@@ -47,14 +47,16 @@ description: >-
 
 负面事项与风险影响分析**合并写在结论区**，不要每个模块单独拉一条「风险影响分析」。
 
+**结论区「（2）负面事项汇总」硬性要求**：除司法/处罚、启信风险、评级、征信中登外，**必须单列「公司负面舆情」分析**（可写“近窗未见重大负面/命中摘要+研判”）。不得只把舆情留在第9节正文。Agent 填写 `negative_items` 时须含舆情条目；同时填 `news_rows` / `news_note`（或 `news_summary`），生成器会在缺失时自动补一条。
+
 ## Agent 工作流程
 
 1. 确认客户全称（承租人/担保人可并行）
 2. **启信慧眼**（若已接入）：首跳 `qixin_insight_lookup(path="/instructions")` + `enterprise_resolve`；再查照面、实控人、失信/被执行、异常/严重违法/处罚、诉讼概览
-3. **财汇**：`get_company_basic_info`、司法、评级、存量债、工商变更等 → `execute_tool`
-4. **iFinD / Wind**：股东、财务、存续债交叉（**历史发行只数 ≠ 余额>0 存量只数**；Wind 宽口径可能含子公司 ABS，须双口径披露）
+3. **财汇**：`get_company_basic_info`、司法、评级、存量债、工商变更、**负面舆情（search_news）** 等 → `execute_tool`
+4. **iFinD / Wind**：股东、财务、存续债交叉（**历史发行只数 ≠ 余额>0 存量只数**；Wind 宽口径可能含子公司 ABS，须双口径披露）；可交叉公告/新闻
 5. 对照《指引》附件1判断是否直接高风险；国有/上市等可作低风险身份认定，信用仍须实质分析
-6. 用附件4结构输出 `{主体}_KYC报告.docx`；口径不一致必须写明，不得静默取一侧
+6. 用附件4结构输出 `{主体}_KYC报告.docx`；口径不一致必须写明，不得静默取一侧；**结论负面事项汇总须含舆情分析**
 7. 脚本入口（债权平台 / 批量）：
 
 ```bash
@@ -72,13 +74,14 @@ stdout 为 JSON 摘要；`--outdir` 写入附件4 docx、`kyc_summary.json` / `k
 
 脚本侧主要拉财汇基础字段与司法/处罚摘要。完整「城投样例」质量报告时，Agent 应把启信/iFinD/Wind 结果填入 `att4_kyc_docx.build_att4_report(..., extras={...})`，关键 extras 键：
 
-- `negative_items` / `fact_summary` / `relevance` / `business_impact` / `controls` / `admission` / `judgment` / `risk_level`
-- `shareholder_rows` / `judicial_rows` / `news_rows` / `finance_rows`
+- `negative_items`（**必须含公司负面舆情一条**）/ `fact_summary` / `relevance` / `business_impact` / `controls` / `admission` / `judgment` / `risk_level`
+- `shareholder_rows` / `judicial_rows` / `news_rows` / `news_note` / `news_summary` / `finance_rows`
 - `bond_note` / `control_path` / `penalty_note` / `qixin_risk_note` / `executed_note`
 
 ## 铁律
 
-- 禁止编造工商、司法、评级、债券只数
+- 禁止编造工商、司法、评级、债券只数、舆情条数
 - 三源不一致必须写明口径，不得静默取一侧
+- **1、KYC综合结论 → 负面事项汇总必须包含公司负面舆情分析**（可与第9节呼应，不得省略）
 - 公开 KYC 不能替代征信、中登、合同与决议核验
 - **默认禁止**输出多章「2026三源核验版」样式，除非用户明确要求
